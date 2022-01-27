@@ -4,6 +4,7 @@ library(shinydashboard)
 library(shiny)
 library(scales)
 library(readxl)
+library(rmarkdown)
 library(flextable)
 library(tidyverse)
 library(data.table)
@@ -14,22 +15,37 @@ library(shinythemes)
 library(janitor)
 library(lubridate)
 library(emo)
+library(reactable) # to make table
+library(htmltools) # for html components
+library(reactablefmtr) # easier implementation of reactable
+library(teamcolors) # for logos
+library(janitor) 
+library(crosstalk)
+library(knitr)
 
-tdis <- read_csv("TD.csv",skip=2)
+#tdis <- read_csv("TD.csv",skip=1)
 
+#rmarkdown::render("sipl_1.Rmd")
+
+
+tdis<- read_csv('https://raw.githubusercontent.com/SimbhuTwice/TDGIS/main/TD.csv',skip=1)
+
+tdr <- read_csv('https://raw.githubusercontent.com/SimbhuTwice/TDGIS/main/tdr1.csv')
 
 
 tdis <- tdis%>%
   clean_names()
 
 tdis_td <- tdis%>%
-  mutate(po_date=dmy(po_date))%>%
   filter(!is.na(po_date))%>%
+  filter(!is.na(total_amount))%>%
+  mutate(po_date=dmy(po_date))%>%
   select(company,BitrixId = task_no,Material=material_full_description,Qty=po_qty,Customer=customer_name,po_date,Amount=total_amount,remarks)
 
 tdis_ts <- tdis%>%
-  mutate(po_date=dmy(po_date))%>%
   filter(!is.na(po_date))%>%
+  filter(!is.na(total_amount))%>%
+  mutate(po_date=dmy(po_date))%>%
   select(Customer=customer_name,Material=material_full_description,Qty=po_qty,StockInHand = stock_in_hand,Delivered=qty_delivered,OrderPlaced=balance_ordered_placed,po_date,
          Amount=total_amount,Company=company)
 
@@ -37,10 +53,16 @@ tdis_ts <- tdis%>%
 tdis_tf <- tdis%>%
   mutate(po_date=dmy(po_date),actualtarget=7)%>%
   filter(!is.na(po_date))%>%
+  filter(!is.na(total_amount))%>%
   select(company,task_no,material_full_description,po_qty,actualtarget,customer_name,po_date,
          stock_in_hand,qty_delivered,total_amount,balance_ordered_placed,remarks)%>%
   #mutate(customer_po_date=dmy(customer_po_date))%>%
-  mutate(AgeDays=Sys.Date()-po_date,material_full_description=tolower(material_full_description))%>%
+  #mutate(AgeDays=Sys.Date()-po_date,material_full_description=tolower(material_full_description))%>%
+  mutate(material_full_description=tolower(material_full_description))%>%
+  mutate(AgeDays = case_when(
+    as.numeric(Sys.Date()-po_date)<= 7 ~ 0,
+    TRUE ~ as.numeric(Sys.Date()-po_date-7)
+  ))%>%
   mutate(type = case_when(
     # str_detect(material_full_description,"ups and battery") ~ paste0("ups ", " car-battery"),
     str_detect(material_full_description,"ups") ~ "ups",
@@ -54,6 +76,44 @@ tdis_tf <- tdis%>%
   mutate(Days_Delayed = AgeDays , .after = task_no)
 
 
+
+tdr_tf<-tdr%>%
+  clean_names()%>%
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )%>%
+  mutate(name=snakecase::to_upper_camel_case(name))%>%
+  mutate(date=dmy(date),due_on=dmy(due_on),name=as.factor(name))%>%
+  select(date,due_on,invoice_no,name,bill_value,pending_value,final_value=final_pending_value,company,
+         Days_LT30=x30_days,Days_30to60=x30_to_60_days,Days_60to90=x60_to_90_days,Days_GT90=x90_days)
+
+
+tdr_tf%>%
+  group_by(name,company)%>%
+  summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),billdate=min(date))%>%
+  mutate(Actual_Due=as.numeric(due_on-billdate))
+
+
+tdr_tf2<-tdr_tf%>%
+  group_by(name,company)%>%
+  summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),
+            billdate=min(date),Days_LT30=sum(Days_LT30),Days_30to60=sum(Days_30to60),
+            Days_60to90=sum(Days_60to90),Days_GT90=sum(Days_GT90))%>%
+  mutate(Actual_Due=as.numeric(due_on-billdate))%>%
+  mutate(AgeDays = case_when(
+    as.numeric(Sys.Date()-billdate)<= Actual_Due ~ 0,
+    TRUE ~ as.numeric(Sys.Date()-billdate-Actual_Due)
+  ))%>%
+  mutate(Days_Delayed = AgeDays , .after = name)%>%
+  mutate(name=as.character(name))%>%
+  ungroup()%>%
+  select(name,company,BillValue,PendingValue,Days_Delayed,due_on)
+
+
+
+
+
+
 render <- c(
   "function(data, type, row){",
   "  if(type === 'display'){",
@@ -65,14 +125,17 @@ render <- c(
   "}"
 )
 
-  
-  ui <- navbarPage("TDIG Dashboard",
+#navbarPage
+  ui <- navbarPage("TD Dashboard",
                   theme = shinythemes::shinytheme("flatly"),  # <--- Specify theme here
-                  tabPanel("TD Implementation Summary ",value=1, gt_output(outputId = "raw_data"),height = px(1600),
+                  tabPanel("Implementation Summary ",value=1, gt_output(outputId = "raw_data"),height = px(1600),
                            width = px(1600)),
-                  tabPanel("TD Implementation Details",value=2,DTOutput("DT1")),
-                  tabPanel("TD Stocks",value=3,gt_output(outputId = "GT1"),height = px(1600),
-                           width = px(1600))
+                  tabPanel("Implementation Details",value=2,DTOutput("DT1")),
+                  tabPanel("Stocks Details",value=3,gt_output(outputId = "GT1"),height = px(1600),
+                           width = px(1600)),
+                  tabPanel("Receivables Summary ",value=1, gt_output(outputId = "tdr"),height = px(1600),
+                           width = px(1600)),
+                 tabPanel("Receivables Details",reactableOutput("renderedReport"))
                   
   )
   
@@ -86,9 +149,23 @@ render <- c(
                actualtarget,customer_name,AgeDays,company)
     })
     
+    gt_tbl2 <-reactive({
+      tdr_tf%>%
+        group_by(name,company)%>%
+        summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),billdate=min(date))%>%
+        mutate(Actual_Due=as.numeric(due_on-billdate))%>%
+        mutate(AgeDays = case_when(
+          as.numeric(Sys.Date()-billdate)<= Actual_Due ~ 0,
+          TRUE ~ as.numeric(Sys.Date()-billdate-Actual_Due)
+        ))%>%
+        mutate(Days_Delayed = AgeDays , .after = name)%>%
+        mutate(name=as.character(name))%>%
+        ungroup()
+    })
     
     gt_tbl_react <- reactiveVal(NULL)
     gt_tbl_react(gt_tbl1)
+    gt_tbl_react(gt_tbl2)
 
     output$raw_data <-
       render_gt({
@@ -98,7 +175,7 @@ render <- c(
             group = "TD Infra",
             rows = company =="TDIS") %>% 
           tab_row_group(
-            group = "TDGlobal",
+            group = "TD Global",
             rows = company =="TDG")%>%
           gt_plt_bullet(column =AgeDays , target = actualtarget,colors = c("#E1341E","#1ECBE1")) %>% 
           gt_fa_column(column = type) %>%
@@ -117,7 +194,7 @@ render <- c(
             )
           ) %>% 
           tab_header(
-            title = paste0("TD Implementation Ageing As on - ",Sys.Date()),
+            title = paste0("TD Implementation Summary As on - ",Sys.Date()),
             subtitle ="Considering 7 Days as our target date from PO "
           ) %>% 
           #gt_highlight_rows(rows = distributor == "HBO", fill = "grey", alpha = 0.4) %>% 
@@ -167,7 +244,7 @@ render <- c(
             group = "TD Infra",
             rows = Company =="TDIS") %>% 
           tab_row_group(
-            group = "TDGlobal",
+            group = "TD Global",
             rows = Company =="TDG")%>%
           tab_style(
             style = list(
@@ -203,6 +280,114 @@ render <- c(
             ))
         
       })
+
+    
+  
+    output$renderedReport<-   renderReactable({
+      tbl<-  reactable(
+        data       = tdr_tf2,elementId = "company",
+        compact    = FALSE, # for minimum row height
+        filterable = TRUE, # for individual column filters
+        striped    = TRUE, # banded rows
+        searchable = TRUE,
+        resizable  = TRUE, # for resizable column widths
+        columns    = list(
+          name   = colDef(name = "Name",  width = 270,  align = "center"),
+          company  = colDef(name = "Company",width = 90, align = "center"),
+          BillValue = colDef(name = "Bill Value",width = 90, align = "center"), 
+          PendingValue  = colDef(name = "Pending Value",      width = 120, align = "center"),
+          Days_Delayed    = colDef(name = "Days Delayed",        width = 120, align = "center"),
+          due_on    = colDef(name = "Due On",        width = 120, align = "center")
+          
+        ),
+        details = function(index) { 
+          sec_lvl = tdr_tf[tdr_tf$name == tdr_tf2$name[index], ] %>%
+            select(invoice_no,Days_LT30:Days_GT90)
+          reactable(data       = sec_lvl,
+                    compact    = TRUE, 
+                    filterable = TRUE,
+                    bordered   = TRUE, 
+                    resizable  = TRUE,
+                    columns    = list(
+                      invoice_no    = colDef(name = "Invoice #",    width = 150, align = "center"),
+                      Days_LT30    = colDef(name = "< 30 Days",    width = 90, align = "center"),
+                      Days_30to60      = colDef(name = "30 to 60 Days",width = 90, align = "center"),
+                      Days_60to90      = colDef(name = "60 to 90 Days", width = 90, align = "center"),
+                      Days_GT90         = colDef(name = "> 90 Days",    width = 90, align = "center")
+                    )
+          )
+        }
+      )
+      
+     # htmltools::tags$iframe(src = "sipl_1.html", width = '100%',  height = 1000,  style = "border:none;")
+    
+     # HTML(markdown::markdownToHTML(knitr::knit('sipl_1.md', quiet = TRUE)))
+    })
+    
+    ##TDR Table
+    output$tdr <- render_gt({
+      gt_tbl2() %>%
+        arrange(desc(AgeDays))%>%
+        select(Client=name,Days_Delayed,BillValue,PendingValue,billdate,Actual_Due,AgeDays,company)%>%
+        gt::gt() %>% 
+        tab_row_group(
+          group = "TD Infra",
+          rows = company =="TDIS") %>% 
+        tab_row_group(
+          group = "TD Global",
+          rows = company =="TDG")%>%
+        gt_plt_bullet(column =AgeDays , target = Actual_Due,colors = c("#E1341E","#1ECBE1")) %>% 
+        # gt_fa_column(column = type) %>%
+        cols_hide(
+          columns = c(
+            company
+          )
+        )%>%
+        #gt_theme_538()%>%
+        #gt_theme_guardian()%>%
+        #gt_theme_espn()%>%
+        gt_theme_nytimes() %>% 
+        fmt_symbol_first(column = Days_Delayed, suffix = " Days", decimals = 0) %>%
+        cols_label(
+          Actual_Due = html(
+            "<span style='color:#1ECBE1;'>Actual Due</span> vs <span style='color:#E1341E;'>Today</span>"
+          )
+        ) %>% 
+        tab_header(
+          title = paste0("Receivables Summary As on - ",Sys.Date()),
+          subtitle = "Considering the actual due based on the clients"
+        ) %>% 
+        #gt_highlight_rows(rows = distributor == "HBO", fill = "grey", alpha = 0.4) %>% 
+        gt_add_divider(Days_Delayed, color = "#7897AB", weight = px(1)) %>% 
+        tab_source_note(md("**Data Source**: TD")) %>% 
+        tab_options(
+          table.border.bottom.color = "grey",
+          table.width = px(500)
+        )%>%
+        grand_summary_rows(
+          columns = BillValue,
+          fns = list(
+            TOTAL = ~sum(.)
+          ),
+          formatter = fmt_number,
+          decimals = 0
+        ) %>%
+        tab_style(
+          style = list(
+            cell_text(style = "italic"),
+            cell_fill(color = "lightblue")
+          ),
+          locations = cells_grand_summary(
+            columns = BillValue,
+            rows = 1)
+        )
+      
+      
+      
+    })
+    
+    
+    
   }
 
   shinyApp(ui=ui,server=server)
