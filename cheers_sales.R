@@ -6,10 +6,13 @@ library(tidyverse)
 # install.packages('janitor',dependencies = TRUE)
 # install.packages('ggthemes',dependencies = TRUE)
 # install.packages('magick',dependencies = TRUE)
- #install.packages('plotly',dependencies = TRUE)
+#install.packages('plotly',dependencies = TRUE)
+#devtools::install_github("ropensci/piggyback")
+
+#install.packages("gt")
 library(shiny)
 library(shinythemes)
-
+library(piggyback)
 library(fullPage)
 library(echarts4r)
 
@@ -48,9 +51,7 @@ library(gtExtras)
 library(shinyBS)
 
 library(describer)
-
-
-
+library(reactablefmtr)
 
 cheers_market <- read_excel("SalesNov.xlsx",skip=5)
 
@@ -251,7 +252,8 @@ sales_nov %>%
   
   ggsave("Top5_2Days.png")
   
-  
+
+
   chs_aug %>%
     mutate(BillDate=as.Date(BillDate))%>%
     filter(!Department=="Unknown")%>%
@@ -309,6 +311,8 @@ mutate(weekday=factor(weekdays(dt,T),levels = rev(c("Mon", "Tue", "Wed", "Thu","
    mutate(week=as.numeric(format(dt,"%W")))
 
  
+ 
+
 #heat map
 ggplot(chr_daily_fmt, aes(x = week, y = weekday, fill = Tot_sales)) +
   labs(title = "Daily Sales Perspective",
@@ -444,12 +448,12 @@ sales_nov %>%
   sales_nov %>%
     mutate(BillDate=dmy(BillDate))%>%
     #mutate(BillDate=as.Date(BillDate))%>%View()
-    filter(BillDate > "2021-07-14")%>%
+    filter(BillDate > "2022-31-01")%>%
     filter(!Department=="Unknown")%>%
     filter(!Department=="BABY CARE")%>%
     #filter(StoreName=="Adyar") %>%
-    filter(SupplierName=="SHYAM ENTERPRISES")%>%
-    #filter(grepl('GRB', ProductName))%>%
+    #filter(SupplierName=="SHYAM ENTERPRISES")%>%
+    filter(grepl('GRB', ProductName))%>%
     select(Department,StoreName,ProductName,ProductCode,Amount,BillDate)%>%
     group_by(ProductName,Department)%>%
     summarise(sum_total=sum(Amount))%>%
@@ -709,7 +713,7 @@ chs_stock_trimmed<-chs_stock %>%
   mutate(percentage= ((Stock - SaleQuantity)/Stock)*100)%>%
   select(percentage,Stock,SaleQuantity,StoreName,ProductName,Department,StoreBrand,SupplierName)
 
-rm(original_books)
+
 
 chs_stock_trimmed$percentage = replace_na(chs_stock_trimmed$percentage,0)
 
@@ -1390,35 +1394,20 @@ chrs_sum <- read_csv('https://raw.githubusercontent.com/SimbhuTwice/CheersAcc/ma
 chrs_sum <- chrs_sum%>%
   clean_names()
   
-##shiny pre work for cheers jan 20 2022
-
+##shiny pre work for cheers feb 08 2022
+##shiny sales prework
+range(pur_novs$GRNDate)
 sales_nov <- read_csv("Sal_jan19.csv",skip=5)
 pur_novs <- read_csv("Pur_jan19.csv",skip=6)
 
-colnames(pur_novs)
-unique(pur_novs$StoreName)
-
-pur_novs%>%
-  filter(!is.na(ExpiryDate))%>%
-  select(ExpiryDate,ProductName,PurchasePrice,MRP,Amount)
-
-
-#write to csv for shiny upload updated nov 15 with nov 14 data
-#write_csv(sales_nov,"shinynovsales.csv")
-
-#write_csv(pur_nov,"shinynovpur.csv")
-# 
-#   pur_oct%>%
-#     head()%>%View()
-#   
 
 
 sales_nov <- sales_nov %>%
- filter(StoreName!="Teynampet")%>%
+ #filter(StoreName!="Teynampet")%>%
 mutate(BillDate=dmy(BillDate),
 BillMonth=month(BillDate),
 BillYear=year(BillDate))%>%
-select(Department,BillDate,StoreName,SupplierName,ProductName,MRP,Amount,BillTime,BillMonth,BillYear)
+select(Department,BillDate,StoreName,SupplierName,ProductName,MRP,Amount,BillTime,BillMonth,BillYear,Quantity)
 
 
  
@@ -1430,8 +1419,7 @@ select(Department,GRNDate,InvoiceDate,SupplierName,StoreName,ProductName,Quantit
 MRP,Amount,PurchasePrice,mnths)
 
 
-pur_nov<-pur_nov%>%
-  filter(GRNDate>"2021-05-10")
+
 
 write_csv(sales_nov,"shinydecsales.csv")
 
@@ -1443,7 +1431,8 @@ unique(pur_nov$SupplierName)
 colnames(pur_nov)
 
 pur_novs%>%
-  filter(SupplierName== "JOYTHI ASSOCIATES")%>%
+ # filter(SupplierName== "JOYTHI ASSOCIATES")%>%
+  filter(grepl('LAYS ',ProductName))%>%
   filter(StoreName=="Cheers Annanagar")%>%
   #filter(mnths>=input$rateThreshold)%>%
   select(Department,GRNDate,StoreName,SupplierName,ProductName,
@@ -1481,7 +1470,7 @@ stock%>%
   filter(StoreName=="Cheers Annanagar")%>%
   filter(Stock>=0 & Stock <=5)%>%
   group_by(SupplierName)%>%
-  head(15)%>%View()
+  head(15)%>%
   group_by(Department)%>%
   gt()%>%
     data_color(
@@ -1699,11 +1688,11 @@ write_csv(salr,"testsales.csv")
 
 ####Updated sales data jan 20 2022
 sal_daily <- sales_nov%>%
-  select(Date=BillDate,BillYear,Amount)%>%
-  filter(Date >'2021-12-01')%>%
+  select(Date=BillDate,everything())%>%
+  filter(Date >'2022-01-31')%>%
  # filter(BillYear>2021)%>%
   group_by(Date)%>%
-  summarise(Total = round(sum(Amount)))
+  dplyr::summarise(Total = round(sum(Amount)))%>%View()
 
 write_csv(sal_daily,"saldaily.csv")
 write_csv(pur_daily,"purdaily.csv")
@@ -1716,7 +1705,7 @@ pur_daily <- pur_nov%>%
 
 cheque_viz<-cheque_viz%>%
   mutate(Date=dmy(Date))%>%left_join(pur_daily,by='Date')%>%
-  mutate(Pur=Total.y)%>%View()
+  mutate(Pur=Total.y)
 
 cheque_viz<- cheque_viz%>%
   mutate(Date=dmy(Date))%>%left_join(sal_daily,by='Date')%>%
@@ -1768,6 +1757,54 @@ cheque_cleared <- read_excel("band.xls",skip=10)
 
 cheque_cleared_dt <- read_csv("band.csv",skip=10)
 
+cheque_icici <- read_csv("icici.csv")
+
+cheque_icici<-cheque_icici%>%
+  clean_names()%>%
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )%>%
+  mutate(Date=dmy(transaction_date))%>%
+  mutate(withdrawal=as.numeric(withdrawal_amt_inr),
+         balance=as.numeric(balance_inr))%>%
+  select(Date,description=transaction_remarks,withdrawal,balance)%>%
+  filter(grepl('CASH', description))
+
+cheque_band<-cheque_cleared%>%
+  clean_names()%>%
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )%>%
+  mutate(Date=dmy(date))%>%
+  filter(grepl('WDL', description)|grepl('SELVAKUMAR', description))%>%
+  select(-date)
+
+cheque_cleared%>%
+  filter((grepl('WDL', Description)))%>%
+           group_by(Date)%>%
+  filter(Date>="2022-03-01")%>%
+           summarise(sum=sum(Debit))
+
+cheque_cleared%>%
+  filter(grepl('DEPOSIT', Description) & grepl('SELVAKUMARBAALU', Description))%>%
+  group_by(Date)%>%
+  filter(Date>="2022-03-01")%>%
+  summarise(sum=sum(Credit))%>%View()
+cheque_All <- cheque_band%>%
+  left_join(cheque_icici,by="Date")
+
+cheque_icici<-cheque_icici%>%
+ # filter(grepl('SelvaAxis', description))%>%
+  group_by(Date)%>%
+  summarise(ICICI_Withdrawal=sum(withdrawal))
+
+cheque_band<-cheque_band%>%
+ filter(grepl('WDL', description))%>%
+  group_by(Date)%>%
+  summarise(Band_Withdrawal=sum(debit))
+
+
+cheque_cleared%>%clean_names()
 cheque_cleared_dt <- cheque_cleared_dt%>%
   clean_names()%>%
   mutate(ref_cheque_no=as.numeric(ref_cheque_no))%>%
@@ -1805,4 +1842,1626 @@ cheque_cleared_dt%>%
     decimals = 0
   )
 
+
+###TD Receivables
+
+TDR <- read_csv("tdr.csv")
+
+TDR_tf <- TDR%>%
+  clean_names()%>%
+  mutate(name=tolower(name))%>%
+  select(name,company:status)%>%
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )
+  
+
+
+tdr%>%
+  clean_names()%>%
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )%>%
+  mutate(name=snakecase::to_upper_camel_case(name))%>%
+  mutate(date=dmy(date),due_on=dmy(due_on),name=as.factor(name))%>%
+  select(date,due_on,invoice_no,name,bill_value,pending_value,final_value=final_pending_value,company,
+         Days_LT30=x30_days,Days_30to60=x30_to_60_days,Days_60to90=x60_to_90_days,Days_GT90=x90_days)
+
+
+
+tdr_tf<-tdr%>%
+  clean_names()%>%
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )%>%
+  mutate(name=snakecase::to_upper_camel_case(name))%>%
+  mutate(date=dmy(date),due_on=dmy(due_on),name=as.factor(name))%>%
+  select(date,due_on,invoice_no,name,bill_value,pending_value,final_value=final_pending_value,company,
+         Days_LT30=x30_days,Days_30to60=x30_to_60_days,Days_60to90=x60_to_90_days,Days_GT90=x90_days)
+
+
+tdr_tf%>%
+  group_by(name,company)%>%
+  summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),billdate=min(date))%>%
+  mutate(Actual_Due=as.numeric(due_on-billdate))
+
+
+tdr_tf2<-tdr_tf%>%
+  group_by(name,company)%>%
+  summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),
+            billdate=min(date),Days_LT30=sum(Days_LT30),Days_30to60=sum(Days_30to60),
+            Days_60to90=sum(Days_60to90),Days_GT90=sum(Days_GT90))%>%
+  mutate(Actual_Due=as.numeric(due_on-billdate))%>%
+  mutate(AgeDays = case_when(
+    as.numeric(Sys.Date()-billdate)<= Actual_Due ~ 0,
+    TRUE ~ as.numeric(Sys.Date()-billdate-Actual_Due)
+  ))%>%
+  mutate(Days_Delayed = AgeDays , .after = name)%>%
+  mutate(name=as.character(name))%>%
+  ungroup()%>%
+  select(name,company,BillValue,PendingValue,Days_Delayed,due_on)
+
+
+
+  TDR_tf %>% 
+  #tibble::rownames_to_column(var = "name") %>%
+  gt(groupname_col = "status", rowname_col = "company") %>% 
+  summary_rows(
+    groups = TRUE,
+    fns = list(Total = ~sum(.))
+  )
+  
+  TDR_tf%>%
+    mutate(name=tolower(name))%>%
+    select(name)
+  ##Multiple Groups
+  
+  TDR_tf %>% 
+    group_by(status,company)%>%
+    gt(rowname_col = "name") %>% 
+    summary_rows(
+      groups = TRUE,
+      fns = list(Total = ~sum(.))
+    )%>%
+    tab_stubhead("TD Receivables") %>% 
+    tab_style(
+      style = list(
+        cell_fill("#FFC600"),
+        cell_text(color = "black", weight = "bold")
+      ),
+      locations = cells_stubhead()
+    )%>%
+    tab_style(
+      style = list(
+        cell_fill("#325288"),
+        cell_text(color = "white", weight = "bold")
+      ),
+      locations = cells_row_groups()
+    ) %>% 
+    tab_style(
+      style = cell_text(color = "#92A9BD", weight = "bold",font = google_font("Ubuntu")),
+      locations = cells_stub()
+    )%>%
+    tab_style(
+      style = list(
+        cell_text(color = "black", font = google_font("Montserrat")),
+        cell_fill("#FFC600")
+      ),
+      locations = cells_summary()
+    )
+  
+  
+  
+
+  
+  
+  
+
+  head(mtcars, 8) %>% 
+    tibble::rownames_to_column(var = "name") %>%
+    mutate(cyl = paste(cyl, "Cylinders")) %>% 
+    group_by(cyl, gear) %>% 
+    arrange(cyl) %>%
+    gt(rowname_col = "name") %>% 
+    summary_rows(
+      groups = TRUE,
+      fns = list(Average = ~mean(.))
+    )
+  
+  tdr_tf2%>%View()
+  
+ reactable(tdr_tf2, resizable = TRUE, filterable = FALSE,
+                   searchable = TRUE,borderless=FALSE,compact=TRUE,showPageSizeOptions = TRUE, 
+                   onClick = "expand", highlight = TRUE, 
+           groupBy = "name",
+                   theme = reactableTheme(
+                     headerStyle = list(
+                       "&:hover[aria-sort]" = list(background = "hsl(0, 0%, 96%)"),
+                       "&[aria-sort='ascending'], &[aria-sort='descending']" = list(background = "hsl(0, 0%, 96%)"),
+                       borderColor = "#555"
+                     )
+                   ),
+                   columnGroups = list(
+                     colGroup(name = "Collection Group", columns = knockout_cols2)
+                   ),columns = list(name = colDef(name = "name",aggregate = "sum"), 
+                                    Days_Delayed=colDef(name = "Days Delayed"),
+                                    company=colDef(name = "Company"),
+                                    BillValue=colDef(name = "Bill Value"),
+                                    PendingValue=colDef(name = "Pending Value"),
+                                    due_on=colDef(name = "Due From"),
+                                    BillValue=colDef(name = "Bill Value")
+                   ), 
+           details = function(index) { # i
+           sec_lvl = tdr_tf[tdr_tf$name == tdr_tf2$name[index], ] 
+           reactable(data       = sec_lvl,
+                     compact    = TRUE, 
+                     filterable = TRUE,
+                     bordered   = TRUE, 
+                     resizable  = TRUE,
+                     columns    = list(
+                       Days_LT30    = colDef(name = "< 30 Days",    width = 70, align = "center"),
+                       Days_30to60      = colDef(name = "30 to 60 Days"),
+                       Days_60to90      = colDef(name = "60 to 90 Days", width = 90, align = "center"),
+                       Days_GT90         = colDef(name = "> 90 Days",    width = 50, align = "center")
+                     )
+           )
+           }
+ )
+ 
+
+  
+  ####TD Receivables jan 25 2022
+  
+  tdr <- read_csv("TDR1.csv")
+  
+  tdr_tf<-tdr%>%
+    clean_names()%>%
+    mutate(
+      across(everything(), ~replace_na(.x, 0))
+    )%>%
+    mutate(date=dmy(date),due_on=dmy(due_on),name=as.factor(name))%>%
+    select(date,due_on,invoice_no,name,bill_value,pending_value,final_value=final_pending_value,company,
+           Days_LT30=x30_days,Days_30to60=x30_to_60_days,Days_60to90=x60_to_90_days,Days_GT90=x90_days)
+  
+  
+  tdr_tf%>%
+    group_by(name,company)%>%
+    summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),billdate=min(date))%>%
+    mutate(Actual_Due=as.numeric(due_on-billdate))
+  
+  
+  
+  
+  tdr_tf1 <-   tdr_tf%>%
+    group_by(name,company)%>%
+    summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),
+              billdate=min(date))%>%
+    mutate(Actual_Due=as.numeric(due_on-billdate))%>%
+    mutate(AgeDays = case_when(
+      as.numeric(Sys.Date()-billdate)<= Actual_Due ~ 0,
+      TRUE ~ as.numeric(Sys.Date()-billdate-Actual_Due)
+    ))%>%
+    mutate(Days_Delayed = AgeDays , .after = name)%>%
+    mutate(name=as.character(name))%>%
+    ungroup()
+  
+  
+  
+  tdr_tf2<-tdr_tf%>%
+    group_by(name,company)%>%
+    summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),
+              billdate=min(date),Days_LT30=sum(Days_LT30),Days_30to60=sum(Days_30to60),
+              Days_60to90=sum(Days_60to90),Days_GT90=sum(Days_GT90))%>%
+    mutate(Actual_Due=as.numeric(due_on-billdate))%>%
+    mutate(AgeDays = case_when(
+      as.numeric(Sys.Date()-billdate)<= Actual_Due ~ 0,
+      TRUE ~ as.numeric(Sys.Date()-billdate-Actual_Due)
+    ))%>%
+    mutate(Days_Delayed = AgeDays , .after = name)%>%
+    mutate(name=as.character(name))%>%
+    ungroup()%>%
+    select(name,company,BillValue,PendingValue,Days_Delayed,due_on)
+    
+  
+
+##TDR Summary
+  
+  tdr_tf1 %>%
+    arrange(desc(AgeDays))%>%
+    select(Client=name,Days_Delayed,BillValue,PendingValue,billdate,Actual_Due,AgeDays,company)%>%
+    gt::gt() %>% 
+    tab_row_group(
+      group = "TD Infra",
+      rows = company =="TDIS") %>% 
+    tab_row_group(
+      group = "TD Global",
+      rows = company =="TDG")%>%
+    gt_plt_bullet(column =AgeDays , target = Actual_Due,colors = c("#E1341E","#1ECBE1")) %>% 
+   # gt_fa_column(column = type) %>%
+    cols_hide(
+      columns = c(
+        company
+      )
+    )%>%
+    #gt_theme_guardian()%>%
+    gt_theme_espn()%>%
+    #gt_theme_nytimes() %>% 
+    fmt_symbol_first(column = Days_Delayed, suffix = "Days", decimals = 0) %>%
+    cols_label(
+      Actual_Due = html(
+        "<span style='color:#1ECBE1;'>Actual Due</span> vs <span style='color:#E1341E;'>Today</span>"
+      )
+    ) %>% 
+    tab_header(
+      title = "Receivables SUmmary",
+      subtitle = "Considering the actual due based in the clients"
+    ) %>% 
+    #gt_highlight_rows(rows = distributor == "HBO", fill = "grey", alpha = 0.4) %>% 
+    gt_add_divider(Days_Delayed, color = "grey", weight = px(1)) %>% 
+    tab_source_note(md("**Data Source**: TD")) %>% 
+    tab_options(
+      table.border.bottom.color = "grey",
+      table.width = px(500)
+    )%>%
+    grand_summary_rows(
+      columns = BillValue,
+      fns = list(
+        TOTAL = ~sum(.)
+      ),
+      formatter = fmt_number,
+      decimals = 0
+    ) %>%
+    tab_style(
+      style = list(
+        cell_text(style = "italic"),
+        cell_fill(color = "lightblue")
+      ),
+      locations = cells_grand_summary(
+        columns = BillValue,
+        rows = 1)
+    )
+  
+  ####TDR Details
+    
+  
+  make_color_pal <- function(colors, bias = 1) {
+    get_color <- colorRamp(colors, bias = bias)
+    function(x) rgb(get_color(x), maxColorValue = 255)
+  }
+  
+  
+  
+  good_color <- make_color_pal(c("#ffffff", "#f2fbd2", "#c9ecb4", "#93d3ab", "#35b0ab"), bias = 2)
+  red_color <- make_color_pal(c("#FFCDD2FF", "#EF9A9AFF", "#E57373FF", "#F44336FF", "#C62828FF"), bias = 2)
+  
+  knockout_cols2 <- c("name","BillValue","PendingValue","Days_Delayed","due_on","company")
+  tdr_tf2 <- tdr_tf2[, c( knockout_cols2)]
+  
+  
+  
+ ####Workable reactable tdr data 
+  sticky_style <- list(backgroundColor = "#f7f7f7")
+  
+
+
+  reactable(
+    data       = tdr_tf2,elementId = "company",
+    compact    = FALSE, # for minimum row height
+    filterable = TRUE, # for individual column filters
+    striped    = TRUE, # banded rows
+    resizable  = TRUE, # for resizable column widths
+    columns    = list(
+      name   = colDef(name = "Name",  width = 150,  align = "center"),
+      company  = colDef(name = "Company",width = 90, align = "center"),
+      BillValue = colDef(name = "Bill Value",width = 70, align = "center"), 
+      PendingValue  = colDef(name = "Pending Value",      width = 120, align = "center"),
+      Days_Delayed    = colDef(name = "Days Delayed",        width = 120, align = "center"),
+      due_on    = colDef(name = "Due On",        width = 120, align = "center")
+
+    ),
+    details = function(index) { 
+      sec_lvl = tdr_tf[tdr_tf$name == tdr_tf2$name[index], ] %>%
+        select(invoice_no,Days_LT30:Days_GT90)
+      reactable(data       = sec_lvl,
+                compact    = TRUE, 
+                filterable = TRUE,
+                bordered   = TRUE, 
+                resizable  = TRUE,
+                columns    = list(
+                  invoice_no    = colDef(name = "Invoice #",    width = 150, align = "center"),
+                  Days_LT30    = colDef(name = "< 30 Days",    width = 90, align = "center"),
+                  Days_30to60      = colDef(name = "30 to 60 Days",width = 90, align = "center"),
+                  Days_60to90      = colDef(name = "60 to 90 Days", width = 90, align = "center"),
+                  Days_GT90         = colDef(name = "> 90 Days",    width = 50, align = "center")
+                )
+      )
+    }
+  )
+
+  
+  
+  #####TD Purchase
+  
+  tdp<-read_csv("tdp.csv")
+  
+  tdp_tf<-  tdp%>%
+    clean_names()%>%
+    mutate(
+      across(everything(), ~replace_na(.x, 0))
+    )%>%
+    mutate(name=snakecase::to_upper_camel_case(name))%>%
+    mutate(date=dmy(date),due_on=dmy(due_on),name=as.factor(name),
+           value=str_trim(str_replace(value,"Cr|Dr","")),
+           final=str_trim(str_replace(final,"Cr|Dr","")))%>%
+    select(name,date,due_on,invoice_no,name,bill_value=value,pending_value=pending,final_value=final,company,
+           Days_LT30=x30_days,Days_30to60=x30_to_60_days,Days_60to90=x60_to_90_days,Days_GT90=x90_days)%>%
+    mutate(bill_value=as.numeric(gsub(",","",bill_value,fixed=TRUE)))%>%
+    mutate(final_value=as.numeric(gsub(",","",final_value,fixed=TRUE)))
+  
+
+  
+
+  
+  tdp_tf%>%
+    group_by(name,company)%>%
+    summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),billdate=min(date))%>%
+    mutate(Actual_Due=as.numeric(due_on-billdate))
+  
+
+
+  tdp_tf2<-tdp_tf%>%
+    group_by(name,company)%>%
+    summarise(BillValue=sum(bill_value),PendingValue=sum(pending_value),due_on=min(due_on),
+              billdate=min(date),Days_LT30=sum(Days_LT30),Days_30to60=sum(Days_30to60),
+              Days_60to90=sum(Days_60to90),Days_GT90=sum(Days_GT90))%>%
+    mutate(Actual_Due=as.numeric(due_on-billdate))%>%
+    mutate(AgeDays = case_when(
+      as.numeric(Sys.Date()-billdate)<= Actual_Due ~ 0,
+      TRUE ~ as.numeric(Sys.Date()-billdate-Actual_Due)
+    ))%>%
+    mutate(Days_Delayed = AgeDays , .after = name)%>%
+   mutate(name=as.character(name))%>%
+    ungroup()%>%
+    select(name,company,BillValue,PendingValue,Days_Delayed,due_on)
+  
+  
+  
+
+  tdp%>%
+    clean_names()%>%
+    mutate(
+      across(everything(), ~replace_na(.x, 0))
+    )%>%
+    mutate(name=snakecase::to_upper_camel_case(name))%>%
+  mutate(sal=str_trim(str_replace(value,"Cr","")))%>%
+    select(value,sal)
+  
+  
+
+ tdp%>%
+   clean_names()%>%
+   mutate(
+     across(everything(), ~replace_na(.x, 0))
+   )%>%
+   mutate(name=snakecase::to_upper_camel_case(name))%>%
+   mutate(sal=substring(value,1,nchar(value)-3))%>%
+   select(value,sal)
+ 
+ chs_sales%>%
+   count(AlternateStoreCode,StoreName)
+ 
+ 
+ chs_sales <- read_csv("Sal_jan19.csv",skip=5)
+ 
+ chs_pur <- read_csv("Pur_jan19.csv",skip=6)
+ 
+ 
+ ####Purchase vs Sales
+ 
+ chs_pur_j <- chs_pur%>%head()%>%View()
+  filter(StoreName=="cheers alwar")%>%
+ mutate(GRNDate=dmy(GRNDate),
+        mnths=month(GRNDate),
+        BillYear=year(GRNDate),InvoiceDate=dmy(InvoiceDate))%>%
+   select(Department,ProductCode,InvoiceDate,GRNDate,InvoiceDate,SupplierName,ProductName,Quantity,
+          MRP,Amount,PurchasePrice,mnths,ReceivedQuantity)%>%
+   filter(grepl("HG",ProductName))
+ 
+ 
+
+ ##Rukmini Sales
+ chs_sales_j <-chs_sales %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>1)%>%
+   #filter(StoreName=="Cheers Annanagar")%>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+   filter(StoreName=="cheers alwar")%>%
+   filter(grepl('HG', ProductName))%>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity,BaseValue,ProductCode)%>%
+   group_by(ProductName,ProductCode)%>%
+   summarise(total_sold=sum(Quantity))
+ 
+ 
+ chs_pur_j%>%
+   inner_join(chs_sales_j,by="ProductCode")%>%
+   select(Department,GRNDate,Product = ProductName.x,ReceivedQuantity,QuantitiesSold=total_sold)
+ 
+ 
+chs_sales %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>1)%>%
+   #filter(StoreName=="Cheers Annanagar")%>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+   filter(StoreName=="cheers alwar")%>%
+   filter(!grepl('MC', SupplierName))%>%head()%>%View()
+ 
+ 
+ write_csv(chs_sales,"shinysales.csv")
+ 
+ chs_sales <- chs_sales%>%
+  # filter(StoreName!="Teynampet")%>%
+   mutate(BillDate=dmy(BillDate),
+          BillMonth=month(BillDate),
+          BillYear=year(BillDate))
+ 
+ ###Pur vs sales different using suppliername
+ chs_pur_j<-chs_pur%>%
+   #filter(StoreName=="cheers alwar")%>%
+   mutate(GRNDate=dmy(GRNDate),
+          mnths=month(GRNDate),
+          BillYear=year(GRNDate),InvoiceDate=dmy(InvoiceDate))%>%
+   select(Department,ProductCode,InvoiceDate,GRNDate,InvoiceDate,SupplierName,ProductName,Quantity,
+          MRP,Amount,PurchasePrice,mnths,ReceivedQuantity)%>%
+   filter(grepl("ARCHANA",SupplierName))%>%
+   group_by(ProductName,ProductCode,GRNDate)%>%
+   summarise(total_received =sum(ReceivedQuantity))
+ 
+ chs_sales_j<-chs_sales %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>1)%>%
+   #filter(StoreName=="Cheers Annanagar")%>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+   filter(StoreName=="cheers alwar")%>%
+   filter(grepl("ARCHANA",SupplierName))%>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity,BaseValue,ProductCode)%>%
+   group_by(ProductName,ProductCode)%>%
+   summarise(total_sold=sum(Quantity))
+ 
+ 
+ 
+ chs_pur_j%>%
+   inner_join(chs_sales_j,by="ProductCode")%>%
+   select(Product = ProductName.x,GRNDate,ReceivedQuantity=total_received,QuantitiesSold=total_sold)
+ 
+ 
+ ############End of Pur Sales####
+ chs_sales <- chs_sales%>%
+   mutate(
+     across(CustomerName, ~replace_na(.x, "Unknown"))
+   )%>%
+   count(CustomerName)%>%
+   arrange(desc(n))
+ 
+ chs_sales%>%
+   filter(StoreName=="cheers alwar")%>%
+   count(SupplierName)
+ 
+ chs_sales%>%
+   filter(StoreName=="cheers alwar")%>%
+   #filter(CustomerName=="sudha ramamurthy")%>%
+   group_by(BillNumber,BillDate)%>%
+   summarise(total=sum(Amount))
+ filter(BillNumber==unique(BillNumber))
+ 
+ 
+ 
+ #top selling product feb 2022 cheers alwarpet
+ 
+ cbPalette1 <- c("#999999", "#E69F00", "#39A388","#56B4E9", "#009E73",
+                "#F0E442","#464660", "#0072B2", "#D55E00", "#CC79A7","#139487","#EF6D6D",
+                "#00B4D8","#6A5495","#464E2E")
+ 
+ chs_sales %>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+ #  filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+   filter(StoreName=="cheers alwar")%>%
+   #filter(StoreName=="Adyar") %>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity)%>%
+   group_by(ProductName)%>%
+   summarise(sum_total=sum(Amount),n=sum(Quantity))%>%
+   arrange(desc(sum_total))%>%
+   top_n(14,sum_total)%>%
+   ungroup()%>%
+   mutate(ProductName=fct_reorder(ProductName,sum_total))%>%
+   ggplot(aes(ProductName,sum_total,fill=ProductName))+
+   geom_col(show.legend = FALSE,color="black")+
+   geom_text(aes(label=comma(sum_total)),size=3,hjust=1,color="white")+
+   scale_y_comma()+
+   scale_fill_manual(values=cbPalette1)+
+   #scale_fill_distiller()+
+ #scale_fill_economist()+
+   coord_flip()+
+   theme_few()+
+   #theme_classic()+
+   labs(title = "Top Selling Products (Alwarpet)",
+        subtitle="Excluding Daily Needs (F&V , Aavin Milk) ",x="",y= "sales",
+        caption = "Viz : Zaprify , Data : CRPL")
+ 
+ 
+ chs_sales%>%
+   ##filter(StoreName=="cheers alwar")%>%
+  # filter(BillDate>"2022-02-15")%>%
+   #filter(CustomerName=="sudha ramamurthy")%>%
+   group_by(CustomerName)%>%
+   summarise(total=sum(Amount))%>%
+   arrange(desc(total))%>%
+   ungroup()%>%
+filter(BillNumber==unique(BillNumber))%>%
+   mutate(
+     across(CustomerName, ~replace_na(.x, "Unknown"))
+   )%>%View()
+ 
+ 
+ 
+ #Top selling products in cheers alwarpet
+ chs_sales %>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   mutate(Productname=str_to_lower(Productname))%>%
+   filter(grepl('PADMINI', ProductName))%>%
+  # filter(StoreName=="cheers alwar")%>%
+filter(StoreName=="Cheers Annanagar")%>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>0)%>%
+   #filter(StoreName=="Adyar") %>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity)%>%
+   group_by(ProductName,Department)%>%
+   summarise(sum_total=sum(Amount),n=round(sum(Quantity)))%>%
+   arrange(desc(n))%>%View()
+ 
+ chs_sales%>%
+   count(Department)
+ 
+ 
+ chs_sales %>%
+   filter(!Department=="Unknown")%>%
+  #filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+   # filter(StoreName=="cheers alwar")%>%
+   filter(StoreName=="Cheers Annanagar")%>%
+   filter(Department=="SNACKS AND BISCUITS")%>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>0)%>%
+   mutate(ProductName=str_to_lower(ProductName))%>%
+   filter(grepl('lays', ProductName))%>%
+   #filter(StoreName=="Adyar") %>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity)%>%
+   group_by(ProductName,Department)%>%
+   summarise(sum_total=sum(Amount),n=round(sum(Quantity)))%>%
+   arrange(desc(sum_total))%>%View()
+ 
+ 
+ 
+ reactable( chs_sales %>%
+              filter(!Department=="Unknown")%>%
+              #filter(!Department=="BABY CARE")%>%
+              filter(!Department=="FRUITS AND VEG")%>%
+              filter(!grepl('Aavin', ProductName))%>%
+              filter(StoreName=="cheers alwar")%>%
+             # filter(StoreName==input$selected_branch)%>%
+              filter(Department=="SNACKS AND BISCUITS")%>%
+              filter(BillYear>2021)%>%
+              filter(BillMonth>0)%>%
+              mutate(ProductName=str_to_lower(ProductName))%>%
+              filter(grepl("lays", ProductName))%>%
+              #filter(StoreName=="Adyar") %>%
+              select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity)%>%
+              group_by(ProductName,Department)%>%
+              summarise(Total_Amnt_Sold=sum(Amount),Units_Sold=sum(Quantity))%>%
+              arrange(desc(Total_Amnt_Sold))%>%
+              top_n(10,Total_Amnt_Sold),
+            compact    = FALSE, # for minimum row height
+            filterable = FALSE, # for individual column filters
+            striped    = TRUE, # banded rows
+            searchable = TRUE,
+            resizable  = TRUE)
+ 
+ 
+ ##March 4
+ 
+ ##Cotton Cloth
+ chs_sales %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>2)%>%
+  #filter(StoreName=="Cheers Annanagar")%>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+  filter(StoreName=="cheers alwar")%>%
+ filter(grepl('COTTON', ProductName))%>%
+   #filter(StoreName=="Adyar") %>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity,BaseValue,FreeMRPValue)%>%
+   group_by(ProductName,Department)%>%
+   summarise(sum_total=sum(Amount),n=round(sum(Quantity)))%>%
+   arrange(desc(n))
+ 
+ 
+ 
+ chs_sales %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>1)%>%
+   #filter(StoreName=="Cheers Annanagar")%>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+   filter(StoreName=="cheers alwar")%>%
+   filter(grepl('COTTON', ProductName))%>%
+   #filter(StoreName=="Adyar") %>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity,BaseValue,FreeMRPValue)%>%
+   group_by(BillDate)%>%
+   summarise(sum_total=sum(Amount),n=round(sum(Quantity)))%>%
+   arrange(desc(n))%>%View()
+ 
+ 
+ 
+ ##Rukmini
+ chs_sales %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>1)%>%
+   filter(StoreName=="Cheers Annanagar")%>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+   ##filter(StoreName=="cheers alwar")%>%
+   filter(grepl('WHEAT', ProductName))%>%
+ # filter(Productname=="RUKMINI WHEAT 1 KG")%>%
+   #filter(StoreName=="Adyar") %>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity,BaseValue,FreeMRPValue)%>%
+   group_by(ProductName,Department)%>%
+   summarise(sum_total=sum(Amount),n=round(sum(Quantity)))%>%
+   arrange(desc(n))
+ ##Rukmini Sales
+ chs_sales %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>1)%>%
+   filter(StoreName=="Cheers Annanagar")%>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+  #filter(StoreName=="cheers alwar")%>%
+   filter(grepl('HG', ProductName))%>%
+   count(ProductName)%>%
+   arrange(desc(n))%>%View()
+   filter(n<10)%>%
+   mutate(ProductName=fct_reorder(ProductName,n))%>%
+   ggplot(aes(ProductName,n))+
+   geom_col()+
+   coord_flip()
+ 
+ 
+ 
+ chs_sales %>%
+   filter(!Department=="Unknown")%>%
+   filter(!Department=="BABY CARE")%>%
+   #  filter(!Department=="FRUITS AND VEG")%>%
+   filter(!grepl('Aavin', ProductName))%>%
+   #filter(StoreName=="Adyar")%>%
+   filter(StoreName=="Cheers Annanagar")%>%
+   #filter(ProductCode=="42597")%>%
+  #filter(Productname=="HIMALAYA MOISTURISING ALMOND SOAP 125 GM")%>%
+   #filter(StoreName=="Cheers Annanagar")%>%
+   filter(BillYear>2021)%>%
+  filter(BillMonth>1)%>%
+   filter(grepl('lays', ProductName))%>%
+   #filter(StoreName=="Adyar") %>%
+   arrange(desc(BillDate))%>%
+   group_by(ProductName)%>%
+   summarise(sum_total=sum(Amount),n=sum(Quantity))%>%
+   arrange(desc(sum_total))%>%
+   top_n(100,sum_total)
+ 
+ 
+ 
+ chs_sales %>%
+   #filter(!Department=="Unknown")%>%
+   #filter(!Department=="BABY CARE")%>%
+   #  filter(!Department=="FRUITS AND VEG")%>%
+   #filter(!grepl('Aavin', ProductName))%>%
+   #filter(StoreName=="Adyar")%>%
+   filter(StoreName=="Cheers Annanagar")%>%
+   
+   #filter(ProductCode=="42597")%>%
+   #filter(Productname=="HIMALAYA MOISTURISING ALMOND SOAP 125 GM")%>%
+   #filter(StoreName=="Cheers Annanagar")%>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>2)%>%
+   #filter(StoreName=="Adyar") %>%
+   arrange(desc(BillDate))%>%
+   group_by(BillDate)%>%
+   summarise(sum_total=sum(Amount))
+ 
+ 
+ chs_sales %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>1)%>%
+   filter(StoreName=="Cheers Annanagar")%>%
+   filter(grepl('RUKMINI WHEAT 1 KG', ProductName))%>%View()
+ 
+ source_tag <- "ExpectedETHReturn is the Average ETH Return based on the 18 month period"
+ 
+ 
+eth <-  read_csv("eth.csv")
+
+eth%>%
+  clean_names()%>%
+  mutate(Months = dmy(month))%>%
+  select(Months,Investment = investment,ETH_USD_PRICE=eth_usd_price,ETH_in_INR=eth_price_inr,
+         Ethereum_Owned=ethereum_owned,ETH_Return=eth_return,Mining_Revenue=mining_per_month)%>%
+  gt()%>%
+  gt_theme_nytimes() %>% 
+  tab_style(
+    style = cell_text(color = "red", weight = "bold"),
+    locations = cells_body(
+      columns = vars(ETH_Return),
+      rows = ETH_Return < 3000000
+    )
+  ) %>% 
+  tab_style(
+    style = cell_text(color = "blue", weight = "bold"),
+    locations = cells_body(
+      columns = vars(ETH_Return),
+      rows = ETH_Return >= 3000000
+    )
+  )%>%
+  grand_summary_rows(
+    columns = ETH_Return,
+    fns = list(
+      ExpectedETHReturn  = ~mean(.)
+    ),
+    formatter = fmt_number,
+    decimals = 0
+  )%>%
+  grand_summary_rows(
+    columns = Mining_Revenue,
+    fns = list(
+      TotalMiningReturn  = ~sum(.)
+    ),
+    formatter = fmt_number,
+    decimals = 0
+  )%>%
+  tab_header(
+    title = "ETH or Mining",
+    subtitle = "Considering 18 Months Assumption Taken from Jan 2022 - June 2023 based on the historical ETH Monthly Price Volatility"
+  ) %>% 
+  #gt_highlight_rows(rows = distributor == "HBO", fill = "grey", alpha = 0.4) %>% 
+  gt_add_divider(Investment, color = "grey", weight = px(1)) %>% 
+  gt_color_rows(Mining_Revenue, palette = "ggsci::blue_material")%>%
+  tab_footnote(
+    footnote = "Ethereum is highly volatile as cryptocurrencies relatively change more often and more severly ",
+    locations = cells_column_labels(
+      columns = ETH_USD_PRICE
+    ))%>%
+  tab_footnote(
+    footnote = "Ethereum Return is calculated by : Current Month Rolling ETH Price * Ethereum Owned",
+    locations = cells_column_labels(
+      columns = ETH_Return
+    ))%>%
+  tab_footnote(
+    footnote = "Mining Revenue is calculated by : 0.5 ETH / Month",
+    locations = cells_column_labels(
+      columns = Mining_Revenue
+    ))%>%
+  tab_source_note(html(source_tag))%>%
+  tab_source_note(md("**Mining Excluding**: Capex | **Ethereum Excluding**: Very High Volatility")) %>% 
+  tab_options(
+    table.border.bottom.color = "grey"
+  )
+
+
+#Cheuque GT Tables
+
+cheq_fev <- read_csv("cheq1.csv")
+
+cheq_fev%>%
+  clean_names()%>%
+  mutate(Bill_Date=dmy(bill_date),Cheque_Date=dmy(cheque_date),Amount=amount,ProductRanges=product_ranges)%>%
+  mutate(AgeinginDays=Sys.Date()-Bill_Date,Year=year)%>%
+  select(-product_ranges)%>%
+ # group_by(Cheque_Date)%>%
+  gt:: gt(groupname_col = "Cheque_Date")%>%
+ # gt_theme_nytimes() %>% 
+  gt_theme_538()%>%
+  summary_rows(
+    groups = TRUE,
+    columns = Amount,
+    fns = list(TotalExpected = ~sum(.))
+  )%>%
+  grand_summary_rows(
+    columns = Amount,
+    fns = list(
+      TotalAmount = ~sum(.)
+    ),
+    formatter = fmt_number,
+    decimals = 0
+  )%>%
+  fmt_symbol_first(column = AgeinginDays, suffix = " Days", decimals = 0)%>%
+  gt_highlight_rows(columns = ProductRanges, rows = ProductRanges =="ADMIN",
+                    font_weight = "normal",fill = "lightgrey")%>%
+  gt_highlight_rows(columns = Year, rows = Year =="2021",
+                    font_weight = "normal",fill = "#EF6D6D")%>%
+  tab_style(
+    style = list(
+      cell_fill("black"),
+      cell_text(color = "white", weight = "bold")
+    ),
+    locations = cells_row_groups()
+  )%>%
+  tab_style(
+    style = cell_text(color = "#035397"),
+    locations = cells_body(
+      columns = vars(ProductRanges),
+     # rows = ProductRanges =="ADMIN"
+     rows = grepl("ADMIN",ProductRanges)
+    ))%>%
+  tab_header(
+    title = "Cheques Expected From April 19th till Apr 30th 2022" ,
+    subtitle = "PS : HomeTech Labour Services cheque of 1,67,472 /- hits on 25th April") 
+
+
+colors_safe <- c("#6EBF8B", "#FC4F4F")
+
+remplotly <- safemebp%>%clean_names()%>%
+  ggplot(aes(system_type,fill=status))+
+  geom_bar()+
+  scale_color_manual(name="",labels = c("Completed","Open"),
+                     values= colors_safe)+
+  scale_fill_manual(name="",values = colors_safe,
+                    labels = c("Completed","Open"))+
+  coord_flip()+
+ theme_classic()+
+theme(legen)
+
+ggplotly(remplotly)
+
+safemebp%>%clean_names()%>%
+  ggplot(aes(status,fill=system_type))+
+  geom_bar()+
+  facet_wrap(~block,scales = "free_y")+
+  theme_classic()
+
+
+##SIcare
+
+disinf_tf%>%
+  group_by(Type)%>%
+  summarise(Revenue=sum(Amount))%>%
+  arrange(desc(Revenue))%>%
+  select(ServiceType=Type,Revenue)%>%
+  gt::gt() %>%
+  grand_summary_rows(
+    columns = Revenue,
+    fns = list(
+      TotalRevenue = ~sum(.)
+    ),
+    formatter = fmt_number,
+    decimals = 0
+  )%>%
+  #gt::opt_table_lines()%>%
+  gt_plt_dot(column = Revenue, category_column = ServiceType,  max_value = 60000,
+             palette = c("#1C7947", "#90AACB", "#63d64a", "#C56824", "#4fabf7")) %>%
+  #gt_theme_538()%>%
+ gt_theme_nytimes()%>%
+  #gt_theme_nytimes() %>% 
+  tab_header(title = md("**SI Care Revenue Summary**"),
+             subtitle = paste0("As on ",max(disinf_tf$Completed_On)))%>%
+  # trim gives smaller range of colors
+  # so the green and purples are not as dark
+  gt_color_rows(Revenue, palette = "ggsci::blue_material")%>%
+  cols_width(ServiceType ~ px(300), 2 ~ px(90))%>%
+  tab_source_note(md("**Data Source**: SI Care"))
+
+chs_sales <- chs_sales%>%
+  # filter(StoreName!="Teynampet")%>%
+  mutate(BillDate=dmy(BillDate),
+         BillMonth=month(BillDate),
+         BillYear=year(BillDate))
+
+chs_sales %>%
+  filter(BillYear>2021)%>%
+  filter(BillDate =='2022-03-17')%>%
+  group_by(BillDate,StoreName)%>%
+  dplyr::summarise(Total = round(sum(Amount)))
+
+sales_nov%>%
+  select(Date=BillDate,BillYear,Amount,StoreName)%>%
+  filter(Date =='2022-03-17')%>%
+  # filter(BillYear>2021)%>%
+ group_by(Date,StoreName)%>%
+  dplyr::summarise(Total = round(sum(Amount)))
+
+
+#Admin Bills
+
+admin <- read_csv("admin.csv")
+
+admin%>%
+  mutate(
+    across(everything(), ~replace_na(.x, 0))
+  )%>%
+  clean_names()%>%
+  mutate(bill_date=dmy(bill_date))%>%
+  mutate(Ageing_Days=Sys.Date()-bill_date)%>%
+  gt()%>%
+  tab_row_group(
+    group = "Cheers Specific",
+    rows = responsible =="Cheers") %>% 
+  tab_row_group(
+    group = "Shared ( Can be Shared / Split across the companies)",
+    rows = responsible =="Shared")%>%
+ # gt_plt_bullet(column =AgeDays , target = actualtarget,colors = c("#E1341E","#1ECBE1")) %>% 
+  #gt_theme_guardian()%>%
+ # gt_theme_espn()%>%
+ # gt_theme_nytimes() %>% 
+  gt_theme_538()%>%
+  tab_header(
+    title = paste0("Admin Cheques Overall As on - ",Sys.Date()),
+    subtitle ="All Admin Cheques are processed under Cheers , Can we share it across the group companies , If that's a possibility ahead? "
+  ) %>% 
+  #gt_highlight_rows(rows = distributor == "HBO", fill = "grey", alpha = 0.4) %>% 
+  gt_add_divider(instrument_number, color = "grey", weight = px(1)) %>% 
+  tab_source_note(md("**Data Source**: CRPL")) %>% 
+  tab_options(
+    table.border.bottom.color = "grey",
+    table.width = px(500)
+  )%>%
+  gt::summary_rows(
+    groups = TRUE, columns = vars(credit),
+    fns = list(Total = ~sum(.)),
+    formatter = fmt_number, decimals = 1
+  ) %>% 
+  tab_style(
+    style = list(
+      cell_text(color = "white", font = google_font("Fira Mono")),
+      cell_fill("black")
+    ),
+    locations = cells_summary()
+  )
+
+
+
+cug <- read_csv("cug.csv")
+
+
+
+cug%>%
+  gt()%>%
+  gt_color_rows(Yearly_Jio_Savings, palette = "ggsci::green_material")%>%
+  gt_color_rows(Monthly_Jio_Savings, palette = "ggsci::yellow_material")%>%
+  tab_footnote(
+    footnote = "Proposed Jio Plan for the Same plan",
+    locations = cells_column_labels(
+      columns = Jio_Bill_Monthly
+    ))%>%
+  gt_theme_nytimes()%>%
+  tab_source_note(md("**Intention**: This came as ANG store has serious Network issue and customer complaints of not able to pay as there is no signal , so looked for jio and came up with this solution and worked with Boo to get the current Plan and Costs"))%>%
+  tab_header(
+    title = "Airtel Vs Jio CUG Plans",
+    subtitle ="Why dont we change CUG to Jio which has same plan good coverage even faster bandwidth"
+  )%>%
+  grand_summary_rows(
+    columns = Yearly_Jio_Savings,
+    fns = list(
+      SAVINGS_PER_YEAR = ~sum(.)
+    ),
+    formatter = fmt_number,
+    decimals = 0
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic"),
+      cell_fill(color = "lightblue")
+    ),
+    locations = cells_grand_summary(
+      columns = Yearly_Jio_Savings,
+      rows = 1)
+  )
+
+
+##Specif data cheque detail geneation march 29
+
+
+
+cheque_viz%>%
+  left_join(cheq_viz_join)%>%
+  select(Date,"Purchase"=Pur,Sales,"Cheque_Cleared"=CC,"CapitalInfusion"=CI,Salary)%>%
+  filter(Date >= "2022-03-01" & Date <= "2022-03-29") 
+
+
+cheque_viz%>%
+  left_join(cheq_viz_join)%>%
+  select(Date,"Purchase"=Pur,Sales,"Cheque_Cleared"=CC,"CapitalInfusion"=CI,Salary)%>%
+  filter(Date >= "2022-03-01" & Date <= "2022-03-29") %>%
+  gt()%>%
+  cols_hide(
+    columns = c(
+      CapitalInfusion
+    )
+  )%>%
+  # gt_highlight_rows(
+  #     #rows = 1:nrow(cheque_viz), 
+  #     fill = "lightgrey",
+  #     bold_target_only = TRUE,
+  #     target_col = Total
+  # )%>%
+  # gt_color_rows(Cheque_Cleared, palette = "ggsci::blue_material")%>%
+  gt_color_rows(Sales, palette = "ggsci::green_material")%>%
+  #gt_color_rows(CapitalInfusion, palette = "ggsci::red_material")%>%
+  gt_color_rows(Cheque_Cleared, palette = "ggsci::yellow_material")%>%
+  gt_plt_bar_stack(
+    column=Salary, palette = pal_salary,
+    position = 'stack', labels = c("Purchase %","Cheque_Cleared %","Sales %"),
+    width = 80,trim=FALSE,
+    fmt_fn = scales::percent_format()
+  )%>%
+  tab_header(
+    title = paste0("Purchase vs Sales Vs CC : Updated Till " ,max(cheque_viz$Date)),
+    subtitle = md("Showing last 30 Days - **Filter the Dates in sidebar for the relevant data**")
+  )%>%
+  tab_source_note(
+    source_note = md("**Data:** CRPL | **Viz:** Zaprify")
+  )%>%
+  # Style
+  gt_theme_nytimes()%>%
+  tab_style(
+    style = list(
+      cell_text(font=google_font(
+        name = "Bebas Neue"), 
+        size='xx-large',
+        color='indianred'
+      )),
+    locations = cells_title(groups = "title")
+  )%>%
+  # Subtitle
+  tab_style(
+    style = list(
+      cell_text(font=google_font(
+        #name = "Roboto Condensed"
+        name = "Roboto"), align = "left",size='small')),
+    locations = cells_title(groups = "subtitle")
+  )%>%
+  # Headers
+  tab_style(
+    style = list(
+      cell_text(
+        font=google_font(name = "Noto Sans Display"), 
+        align = "center",v_align='middle',
+        transform = 'capitalize',weight='bold'),
+      cell_borders(color='dimgrey',style='solid',sides=c('top'))
+    ),
+    locations = cells_column_spanners()
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(font=google_font(
+        name = "Roboto Condensed"
+      ), align = "center",size='small',
+      transform = 'lowercase',v_align='middle'),
+      cell_borders(color='dimgrey',style='solid',sides=c('bottom'))),
+    locations = cells_column_labels()
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(font=google_font(
+        name = "Fira Sans"),align = 'left'
+      )),
+    locations = cells_body(columns = c(Date))
+  )%>%
+  # tab_style(
+  #     style = list(
+  #         cell_text(font=google_font(
+  #             name = "Fira Sans"),align = 'center'
+  #         )),
+  #     locations = cells_body(columns = c(Total))
+  # )%>%
+  # Footnote
+  tab_style(
+    style = list(
+      cell_text(font=google_font(
+        name = "Roboto Condensed"
+      ),style = "italic"),
+      cell_borders(color='dimgrey',style='solid',sides=c('top'))),
+    locations = cells_footnotes()
+  )%>%
+  # Source note
+  tab_style(
+    style = list(
+      cell_text(font=google_font(
+        name = "Roboto Condensed"
+      ))),
+    locations = cells_source_notes()
+  )%>%
+  # Borders
+  tab_options(
+    table.border.top.style = "solid",
+    table.border.top.color = "dimgrey",
+    table.border.bottom.style = "hidden"
+  )%>%
+  grand_summary_rows(
+    columns = Purchase:Cheque_Cleared,
+    fns = list(
+      TOTAL = ~sum(.)
+    ),
+    formatter = fmt_number,
+    decimals = 0
+  ) %>%
+  tab_style(
+    style = list(
+      cell_text(style = "italic"),
+      cell_fill(color = "lightblue")
+    ),
+    locations = cells_grand_summary(
+      columns = Purchase:Cheque_Cleared,
+      rows = 1)
+  ) %>%
+  # tab_style(
+  #     style = cell_text(color = "e7e8d1", weight = "bold"),
+  #     locations = cells_body(
+  #         columns = vars(Total),
+  #         rows = Total >= 200000
+  #     )
+  # )%>%
+  tab_footnote(
+    footnote = md("Cheque Cleared are Zero on some days as they are **Weekends / Holiday**"),
+    locations = cells_column_labels(4)
+  )%>%
+  tab_footnote(
+    footnote = md("Total Capital **Infused** on a daily basis"),
+    locations = cells_column_labels(5)
+  )
+# data_color(
+#     columns = vars(Cheque_Cleared),
+#     colors = scales::col_numeric(
+#         palette = c(
+#             "white", "orange", "red"),
+#         domain = NULL)
+# )
+
+chs_sales%>%
+  count(StoreName)
+
+chs_sales_plot<-chs_sales%>%
+  filter(StoreName=="cheers alwar")%>%
+  filter(BillDate>="2022-03-01"&BillDate<="2022-03-10")%>%
+  group_by(Department)%>%
+  summarise(TotalSales=sum(Amount))%>%
+  arrange(desc(TotalSales))
+
+
+chs_sales_pplot<-chs_sales%>%
+  filter(StoreName=="cheers alwar")%>%
+  filter(BillDate>="2022-01-01"&BillDate<="2022-03-31")%>%
+  group_by(Department)%>%
+  summarise(TotalSales=sum(Amount))%>%
+  mutate(Percentage= round(((TotalSales)/sum(TotalSales))*100,1)/100)%>%
+  arrange(desc(Percentage))%>%
+  select(Department,Percentage)
+
+chs_waffle <- chs_sales%>%
+  filter(BillYear>2021)%>%
+ # filter(BillMonth==3)%>%
+  filter(StoreName=="cheers alwar")%>%
+  #filter(BillDate>="2022-01-01"&BillDate<="2022-03-31")%>%
+  #filter(Department=="SNACKS AND BISCUITS")%>%
+  group_by(Department)%>%
+  summarise(TotalSales=sum(Amount))%>%
+  mutate(Percentage= round(((TotalSales)/sum(TotalSales))*100,2))%>%
+  mutate(Department=as.factor(Department))%>%
+  arrange(desc(Percentage))%>%
+  select(Department,Percentage)
+
+chs_waffle%>%
+ # filter(BillMonth==3)%>%
+ggplot(aes(fill = fct_reorder(Department,Percentage), values = Percentage)) +
+  geom_waffle(n_rows = 10, cols = 100, size = 0.2, colour = "white", flip = TRUE,
+              show.legend = FALSE) +
+  scale_fill_manual(name = NULL,
+                    values = c("#77C3C2", "grey87"))+
+  coord_fixed() +
+  facet_wrap(vars(Department)) +
+  theme(axis.title = element_blank())
+library(glue)
+  
+chs_waffle%>%
+  #filter(BillMonth==3)%>%
+  mutate(share_renewable_precise = Percentage,
+         share_renewable = round(Percentage),
+         share_other = 100 - share_renewable) %>% 
+  pivot_longer(cols = c(share_renewable, share_other), names_pattern = "share_(.+)") %>% 
+  mutate(name = factor(name, levels = c("renewable", "other")))%>%
+  mutate(
+    share_fmt = sprintf("%.1f", share_renewable_precise),
+    label = glue::glue("{Department} {share_fmt} %"),
+    label = fct_reorder(label, -share_renewable_precise))%>%
+  ggplot(aes(fill = name, values = value)) +
+  geom_waffle(n_rows = 10, cols = 20, size = 0.1, colour = "white", flip = TRUE,
+              show.legend = FALSE) +
+  scale_fill_manual(name = NULL,
+                    values = c("#FFD93D", "#243D25")) +
+  coord_fixed() +
+  facet_wrap(vars(label)) +
+  plot_labs +
+ # theme(axis.title = element_blank())
+  theme_bw()
+
+
+maxval <- max(chs_sales_plot$TotalSales)
+
+#percentage
+reactable(
+  chs_sales_pplot,
+  pagination = FALSE,
+  defaultColDef = colDef(
+    cell = data_bars(chs_sales_pplot, 
+                     fill_color = c("#1efffd", "#1e20ff"), 
+                     fill_gradient = TRUE, 
+                     background = "lightgrey", 
+                     max_value = 0.09, 
+                     brighten_text = FALSE,
+                     text_color = "white",
+                     number_fmt = scales::percent)
+  )
+)
+
+
+
+reactable(
+  chs_sales_plot,
+  pagination = FALSE,
+  defaultColDef = colDef(
+    cell = data_bars(chs_sales_plot, 
+                     fill_color = c("#1efffd", "#1e20ff"), 
+                     fill_gradient = TRUE, 
+                     background = "lightgrey",
+                     max_value = maxval+1000 , 
+                     brighten_text = FALSE,
+                     text_color = "white",
+                     number_fmt = scales::comma)
+  )
+)
+
+
+chs_gp <- read_csv("sales.csv",skip=5)
+chs_pur<- read_csv("purc.csv",skip=6)
+
+
+chs_pur <- chs_pur %>%
+  mutate(GRNDate=dmy(GRNDate),
+         mnths=month(GRNDate),
+         BillYear=year(GRNDate),InvoiceDate=dmy(InvoiceDate))
+chs_pur_tf <-chs_pur%>%
+  filter(BillYear>2021)%>%
+  #filter(mnths==3)%>%
+  mutate(Gross=MRP-PurchasePrice)%>%
+  select(Department,GRNDate,InvoiceDate,SupplierName,StoreName,ProductName,Gross,MRP,PurchasePrice,Quantity,
+         MRP,Amount,mnths)
+#filter(Department=="FRUITS AND VEG")%>%View()
+
+
+
+chs_gp <- chs_gp %>%
+  #filter(StoreName!="Teynampet")%>%
+  mutate(BillDate=dmy(BillDate),
+         BillMonth=month(BillDate),
+         BillYear=year(BillDate))
+
+
+chs_gp_tf<-chs_gp%>%
+  filter(BillYear>2021)%>%
+  filter(BillMonth==3)%>%
+  select(Department,BillDate,StoreName,SupplierName,ProductName,
+         BaseValue,BillNumber,Amount,BillTime,BillMonth,BillYear,Quantity)%>%
+ # filter(!Department=="FRUITS AND VEG")%>%
+  group_by(StoreName)%>%
+  summarise(TotalSales=sum(Amount))
+
+
+
+
+
+chs_gp_tf%>%
+  inner_join(chs_pur_tf,by="ProductName")%>%
+  #filter(!Department.x=="Unknown")%>%
+ # filter(!Department=="BABY CARE")%>%
+  filter(!Department.x=="FRUITS AND VEG")%>%
+  #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+  filter(ProductName=="LAYS AMERICAN STYLE CREAM & ONION 52 GMS")%>%
+  group_by(BillNumber,StoreName.x,ProductName,BillMonth,Gross)%>%
+  count(Quantity.x)%>%
+  mutate(GP=Gross*Quantity.x)%>%
+  group_by(StoreName.x)%>%
+  summarise(GrossProfit=sum(GP))
+
+
+###Summarise
+chs_gp_tf%>%
+  inner_join(chs_pur_tf,by="ProductName")%>%
+  #filter(!Department.x=="Unknown")%>%
+  # filter(!Department=="BABY CARE")%>%
+  filter(!Department.x=="FRUITS AND VEG")%>%
+  #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+  #filter(ProductName=="CADBURY DAIRY MILK SILK FRUIT & NUT 137 GMS")%>%
+ # filter(StoreName.x=="cheers alwar")%>%
+  #group_by(BillNumber,StoreName.x,ProductName,BillMonth,Gross)%>%
+  group_by(BillNumber,ProductName,SupplierName.x,Gross,StoreName.x)%>%
+  count(Quantity.x)%>%
+  filter(n>1)%>%
+  mutate(GP=Gross*Quantity.x)%>%
+  group_by(StoreName.x)%>%
+  summarise(GrossProfit=sum(GP))
+
+  
+  
+  ##Department Wise ANG
+  chs_gp_tf%>%
+    inner_join(chs_pur_tf,by="ProductName")%>%
+    #filter(!Department.x=="Unknown")%>%
+    # filter(!Department=="BABY CARE")%>%
+    filter(!Department.x=="FRUITS AND VEG")%>%
+    #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+    #filter(ProductName=="CADBURY DAIRYMILK SILK HAZELNUT 58GMS")%>%
+    filter(StoreName.x=="Cheers Annanagar")%>%
+    #group_by(BillNumber,StoreName.x,ProductName,BillMonth,Gross)%>%
+    group_by(BillNumber,Department.x,SupplierName.x,Gross,StoreName.x)%>%
+    count(Quantity.x)%>%
+    filter(n>1)%>%
+  mutate(GP=Gross*Quantity.x)%>%
+    group_by(Department.x)%>%
+    summarise(GrossProfit=sum(GP))%>%
+    arrange(desc(GrossProfit))%>%
+    select(Department=Department.x,GrossProfit)%>%
+    gt::gt()%>%
+    #gt_theme_538()%>%
+    gt_theme_espn() %>% 
+    tab_header(title = "AnnaNagar Gross Profit by Department for March 2022",
+               subtitle = "Excluding F&V as there are few things to be consolidated on the gms to unit quantity")%>%
+    fmt_symbol_first(column = GrossProfit, suffix = " INR", decimals = 2)%>%
+    # trim gives smaller range of colors
+    # so the green and purples are not as dark
+    gt_color_rows(GrossProfit, palette = "ggsci::blue_material")
+  
+  
+  ###SVA
+  chs_gp_tf%>%
+    inner_join(chs_pur_tf,by="ProductName")%>%
+    #filter(!Department.x=="Unknown")%>%
+    # filter(!Department=="BABY CARE")%>%
+    filter(!Department.x=="FRUITS AND VEG")%>%
+    #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+    #filter(ProductName=="CADBURY DAIRYMILK SILK HAZELNUT 58GMS")%>%
+    filter(StoreName.x=="cheers Ayanavaram")%>%
+    #group_by(BillNumber,StoreName.x,ProductName,BillMonth,Gross)%>%
+    group_by(BillNumber,Department.x,SupplierName.x,Gross,StoreName.x)%>%
+    count(Quantity.x)%>%
+    filter(n>1)%>%
+    mutate(GP=Gross*Quantity.x)%>%
+    group_by(Department.x)%>%
+    summarise(GrossProfit=sum(GP))%>%
+    arrange(desc(GrossProfit))%>%
+    select(Department=Department.x,GrossProfit)%>%
+  gt::gt()%>%
+    #gt_theme_538()%>%
+    gt_theme_espn() %>% 
+    tab_header(title = "SVA Gross Profit by Department for March 2022",
+               subtitle = "Excluding F&V as there are few things to be consolidated on the gms to unit quantity")%>%
+    fmt_symbol_first(column = GrossProfit, suffix = " INR", decimals = 2)%>%
+    # trim gives smaller range of colors
+    # so the green and purples are not as dark
+    gt_color_rows(GrossProfit, palette = "ggsci::blue_material")
+  
+  
+  ### Department wise Alwar
+  chs_gp_tf%>%
+    inner_join(chs_pur_tf,by="ProductName")%>%
+    #filter(!Department.x=="Unknown")%>%
+    # filter(!Department=="BABY CARE")%>%
+    filter(!Department.x=="FRUITS AND VEG")%>%
+    #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+    #filter(ProductName=="CADBURY DAIRYMILK SILK HAZELNUT 58GMS")%>%
+    filter(StoreName.x=="cheers alwar")%>%
+    #group_by(BillNumber,StoreName.x,ProductName,BillMonth,Gross)%>%
+    group_by(BillNumber,Department.x,SupplierName.x,Gross,StoreName.x)%>%
+    count(Quantity.x)%>%
+    filter(n>1)%>%
+    mutate(GP=Gross*Quantity.x)%>%
+    group_by(Department.x)%>%
+    summarise(GrossProfit=sum(GP))%>%
+    arrange(desc(GrossProfit))%>%
+    select(Department=Department.x,GrossProfit)%>%
+    gt::gt()%>%
+    #gt_theme_538()%>%
+    gt_theme_espn() %>% 
+    tab_header(title = "Alwarpet Gross Profit by Department for March 2022",
+               subtitle = "Excluding F&V as there are few things to be consolidated on the gms to unit quantity")%>%
+    fmt_symbol_first(column = GrossProfit, suffix = " INR", decimals = 2)%>%
+    # trim gives smaller range of colors
+    # so the green and purples are not as dark
+    gt_color_rows(GrossProfit, palette = "ggsci::blue_material")
+  
+  gp <- read_csv("GP.csv")
+  
+  
+  
+  gp %>%
+    gt::gt()%>%
+    #gt_theme_538()%>%
+    gt_theme_espn() %>% 
+    tab_header(title = "Gross Profit across stores for March 2022",
+               subtitle = "Excluding F&V as there are few things to be consolidated on the gms to unit quantity")%>%
+    fmt_symbol_first(column = GrossProfitPercent, suffix = " %", decimals = 2)%>%
+    # trim gives smaller range of colors
+    # so the green and purples are not as dark
+    gt_color_rows(GPPerMonth, palette = "ggsci::blue_material")
+  
+  
+######ENd of GP#####
+  
+  chs_gp_tf%>%
+    inner_join(chs_pur_tf,by="ProductName")%>%
+    #filter(!Department.x=="Unknown")%>%
+    # filter(!Department=="BABY CARE")%>%
+    filter(!Department.x=="FRUITS AND VEG")%>%
+    #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+    filter(StoreName.x=="cheers alwar")%>%
+    filter(ProductName=="CADBURY DAIRY MILK SILK FRUIT & NUT 137 GMS")%>%
+    group_by(BillNumber,ProductName,SupplierName.x,Gross)%>%
+    count(Quantity.x)%>%
+    filter(n>1)%>%
+    mutate(GP=Gross*Quantity.x)
+  
+
+chs_gp_tf%>%
+  inner_join(chs_pur_tf,by="ProductName")%>%
+  #filter(!Department.x=="Unknown")%>%
+  # filter(!Department=="BABY CARE")%>%
+  filter(!Department.x=="FRUITS AND VEG")%>%
+  filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+  group_by(BillNumber)%>%
+  count(Quantity.x)%>%
+  mutate(GP=Gross*n)%>%
+  group_by(StoreName.x)%>%
+  summarise(GrossProfit=sum(GP))
+
+chs_gp_tf%>%
+  filter(BillMonth==3)%>%
+  filter(StoreName=="cheers alwar")%>%
+  filter(grepl("LAYS AMERICAN STYLE CREAM & ONION 52 GMS",ProductName))%>%
+  View()
+
+
+
+chs_gp_tf%>%
+  filter(BillMonth==3)%>%
+  filter(StoreName=="Cheers Annanagar")%>%
+  filter(grepl("LAYS",ProductName))%>%
+  count(Quantity)
+  View()
+
+
+
+chs_gp_tf%>%
+  filter(BillMonth==3)%>%
+filter(SupplierName=="R V S S ENTERPRISES")%>%
+  filter(StoreName=="cheers alwar")%>%
+  filter(ProductName=="HG POTATO CHIPS THIN AND CRISPY 100G")%>%View()
+
+
+chs_gp_tf%>%
+  inner_join(chs_pur_tf,by="ProductName")%>%
+  #filter(!Department.x=="Unknown")%>%
+  # filter(!Department=="BABY CARE")%>%
+  filter(!Department.x=="FRUITS AND VEG")%>%
+  filter(StoreName.x=="Cheers Annanagar")%>% 
+  #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+  group_by(StoreName.x,Department.x,BillMonth,Gross)%>%
+  count(Quantity.x)%>%
+  mutate(GP=Gross*n)%>%
+  group_by(Department.x)%>%
+  summarise(GrossProfit=sum(GP))%>%
+  arrange(desc(GrossProfit))
+
+###SVA
+chs_gp_tf%>%
+  inner_join(chs_pur_tf,by="ProductName")%>%
+  #filter(!Department.x=="Unknown")%>%
+  # filter(!Department=="BABY CARE")%>%
+  filter(!Department.x=="FRUITS AND VEG")%>%
+  filter(StoreName.x=="cheers Ayanavaram")%>% 
+  #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+  group_by(BillNumber,Department.x,SupplierName.x,Gross,StoreName.x)%>%
+  count(Quantity.x)%>%
+  filter(n>1)%>%
+  mutate(GP=Gross*Quantity.x)%>%
+  group_by(Department.x)%>%
+  summarise(GrossProfit=sum(GP))%>%
+  arrange(desc(GrossProfit))
+
+
+###Alwar
+
+chs_gp_tf%>%
+  inner_join(chs_pur_tf,by="ProductName")%>%
+  #filter(!Department.x=="Unknown")%>%
+  # filter(!Department=="BABY CARE")%>%
+  filter(!Department.x=="FRUITS AND VEG")%>%
+  filter(StoreName.x=="cheers alwar")%>% 
+  #filter(SupplierName.x=="R V S S ENTERPRISES")%>%
+  group_by(StoreName.x,Department.x,BillMonth,Gross)%>%
+  count(Quantity.x)%>%
+  mutate(GP=Gross*n)%>%
+  group_by(Department.x)%>%
+  summarise(GrossProfit=sum(GP))%>%
+  arrange(desc(GrossProfit))
+
+
+
+sales_nov<-read_csv("shinydecsales.csv",show_col_types = FALSE)
+
+pur_nov <- read_csv("shinydecpur.csv",show_col_types = FALSE)
+
+
+sales_nov%>%
+  filter(SupplierName=="R V S S ENTERPRISES")%>%
+filter(StoreName=="cheers alwar")%>%
+  filter(BillDate >= "2022-03-01" & BillDate <= "2022-04-10")%>%
+  #filter(BillMonth>=input$rateThreshold)%>%
+  select(Department,BillDate,StoreName,SupplierName,ProductName,MRP,
+         Amount,BillTime,mnths=BillMonth,BillYear)%>%
+  group_by(ProductName,Department)%>%
+  summarise(sales=sum(Amount))%>%
+  arrange(desc(sales))%>%inner_join(pur_nov%>%
+                                      filter(SupplierName=="R V S S ENTERPRISES")%>%
+                                      #filter(mnths>=input$rateThreshold)%>%
+                                      filter(GRNDate >= "2022-03-01" & GRNDate <= "2022-04-10")%>%
+                                      select(Department,GRNDate,StoreName,SupplierName,ProductName,
+                                             Quantity,MRP,Amount,PurchasePrice,mnths)%>%
+                                      group_by(ProductName,Department)%>%
+                                      summarise(purchased=sum(Amount))%>%
+                                      arrange(desc(purchased)), by="ProductName")%>%
+  select(  ProductName ,purchased,sales)%>%
+  group_by( ProductName)%>%
+  summarise(purchase=round(sum(purchased)),sold = round(sum(sales)))%>%
+  arrange(desc(purchase))%>% gt ::gt()
+
+
+
+#CRM Dashbiard
+
+crm_dash <- read_csv("crm_dash.csv")
+
+crm_dash%>%
+  mutate(Date=dmy(Date))%>%
+  group_by(Date)%>%
+  summarise(Dialled_calls=sum(Dialled_calls),Active_Calls=sum(Active_Calls))%>%
+pivot_longer(cols = Dialled_calls:Active_Calls,names_to = "Type")%>%
+  mutate(Type=as.factor(Type))%>%
+  ggplot(aes(Date,value,color=Type))+
+  geom_line()
+  
 
