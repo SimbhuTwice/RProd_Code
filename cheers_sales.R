@@ -47,9 +47,7 @@ library(dplyr)
 library(forcats)
 library(gt)
 library(gtExtras)
-
 library(shinyBS)
-
 library(describer)
 library(reactablefmtr)
 
@@ -313,7 +311,7 @@ mutate(weekday=factor(weekdays(dt,T),levels = rev(c("Mon", "Tue", "Wed", "Thu","
  
  
 
-#heat map
+#heat map daily graph
 ggplot(chr_daily_fmt, aes(x = week, y = weekday, fill = Tot_sales)) +
   labs(title = "Daily Sales Perspective",
        subtitle = "Empty Rows in-between are Lockdown Protocol Days")+
@@ -1224,6 +1222,8 @@ sales_nov %>%
   filter(!Department=="Unknown")%>%
   filter(!Department=="BABY CARE")%>%
   filter(StoreName=="cheers Ayanavaram") %>%
+  
+  
   select(Department,StoreName,ProductName,MRP,Amount,BillDate)%>%
   group_by(Department)%>%
   summarise(sum_total=sum(Amount))%>%
@@ -1396,10 +1396,12 @@ chrs_sum <- chrs_sum%>%
   
 ##shiny pre work for cheers feb 08 2022
 ##shiny sales prework
-range(pur_novs$GRNDate)
+
+
 sales_nov <- read_csv("Sal_jan19.csv",skip=5)
 pur_novs <- read_csv("Pur_jan19.csv",skip=6)
 
+  
 
 
 sales_nov <- sales_nov %>%
@@ -1445,7 +1447,21 @@ pur_novs%>%
 range(sales_nov$BillDate)
 rm(sales_violin)
 
+###Remove##
+salesremove%>%
+  filter(BillNumber=="SC860")%>%
+  View()
 
+  salesremove%>%
+    filter(grepl("Suresh",CustomerName))%>%
+    filter(grepl("RICE",ProductName))%>%
+    dplyr::select(StoreName,ProductName,Amount,BillDate,BillNumber,CustomerName)%>%
+    View()
+  
+
+  
+  
+#####
 
 sales_violin <- sales_nov%>%
    # filter(SupplierName=="JOYTHI ASSOCIATES")%>%
@@ -2279,7 +2295,7 @@ tdr_tf2<-tdr_tf%>%
    filter(!Department=="FRUITS AND VEG")%>%
    filter(!grepl('Aavin', ProductName))%>%
    filter(StoreName=="cheers alwar")%>%
-   filter(grepl('HG', ProductName))%>%
+   filter(grepl('CHHOLE', ProductName))%>%
    select(Department,StoreName,ProductName,MRP,Amount,BillDate,Quantity,BaseValue,ProductCode)%>%
    group_by(ProductName,ProductCode)%>%
    summarise(total_sold=sum(Quantity))
@@ -2289,6 +2305,19 @@ tdr_tf2<-tdr_tf%>%
    inner_join(chs_sales_j,by="ProductCode")%>%
    select(Department,GRNDate,Product = ProductName.x,ReceivedQuantity,QuantitiesSold=total_sold)
  
+ 
+ 
+ sales_nov %>%
+   filter(BillYear>2021)%>%
+   filter(BillMonth>2)%>%
+   ##filter(BillDate>'2022-03-20')%>%
+   #filter(StoreName=="Cheers Annanagar")%>%
+   filter(grepl('BAJRANG',SupplierName))%>%
+   #filter(StoreName=="cheers Ayanavaram")%>%
+  # filter(grepl('CHHOLE', ProductName))%>%
+   select(Department,StoreName,ProductName,MRP,Amount,BillDate)%>%
+ # group_by(ProductName)%>%
+   summarise(total_sold=sum(Amount))
  
 chs_sales %>%
    filter(BillYear>2021)%>%
@@ -2412,7 +2441,44 @@ filter(BillNumber==unique(BillNumber))%>%
      across(CustomerName, ~replace_na(.x, "Unknown"))
    )%>%View()
  
- 
+ pur_nov%>%
+   filter(grepl('TATTVA', ProductName))%>%
+   filter(Quantity>0)%>%
+   dplyr::select(GRNDate,InvoiceDate,ProductName,SupplierName,Quantity,MRP)%>%
+   gt ::gt()%>%
+   tab_header(
+     title = "Organic Tattva Purchase Details",
+     subtitle = "Includes PR"
+   )%>%
+   gt::opt_table_lines()%>%
+   gt_theme_538()%>%
+  # gt_theme_espn()%>%
+   tab_options(
+     table.border.bottom.color = "grey",
+     table.width = px(410)
+   )%>%
+   gt_color_rows(Quantity, palette = "ggsci::blue_material")%>%
+   tab_options(
+     table.border.bottom.color = "grey",
+     table.width = px(500)
+   )%>%
+   grand_summary_rows(
+     columns = Quantity,
+     fns = list(
+       TOTAL = ~sum(.)
+     ),
+     formatter = fmt_number,
+     decimals = 0
+   )%>%
+   grand_summary_rows(
+     columns = MRP,
+     fns = list(
+       TOTAL = ~sum(.)
+     ),
+     formatter = fmt_number,
+     decimals = 0
+   )
+
  
  #Top selling products in cheers alwarpet
  chs_sales %>%
@@ -2614,7 +2680,7 @@ eth%>%
   mutate(Months = dmy(month))%>%
   select(Months,Investment = investment,ETH_USD_PRICE=eth_usd_price,ETH_in_INR=eth_price_inr,
          Ethereum_Owned=ethereum_owned,ETH_Return=eth_return,Mining_Revenue=mining_per_month)%>%
-  gt()%>%
+  gt ::gt()%>%
   gt_theme_nytimes() %>% 
   tab_style(
     style = cell_text(color = "red", weight = "bold"),
@@ -2677,13 +2743,17 @@ eth%>%
 
 #Cheuque GT Tables
 
-cheq_fev <- read_csv("cheq1.csv")
+#cheq_fev <- read_csv("cheq2.csv")
+
+
+cheq_fev <- read_csv("cheersjun.csv")
 
 cheq_fev%>%
   clean_names()%>%
-  mutate(Bill_Date=dmy(bill_date),Cheque_Date=dmy(cheque_date),Amount=amount,ProductRanges=product_ranges)%>%
-  mutate(AgeinginDays=Sys.Date()-Bill_Date,Year=year)%>%
-  select(-product_ranges)%>%
+  select(1:5)%>%
+  mutate(Bill_Date=dmy(bill_date),Cheque_Date=dmy(cheque_date),Amount=amount,Type=type)%>%
+  mutate(Year=year(Bill_Date),AgeinginDays=Sys.Date()-Bill_Date)%>%
+  select(-bill_date)%>%
  # group_by(Cheque_Date)%>%
   gt:: gt(groupname_col = "Cheque_Date")%>%
  # gt_theme_nytimes() %>% 
@@ -2696,13 +2766,13 @@ cheq_fev%>%
   grand_summary_rows(
     columns = Amount,
     fns = list(
-      TotalAmount = ~sum(.)
+      MonthTotal = ~sum(.)
     ),
     formatter = fmt_number,
     decimals = 0
   )%>%
   fmt_symbol_first(column = AgeinginDays, suffix = " Days", decimals = 0)%>%
-  gt_highlight_rows(columns = ProductRanges, rows = ProductRanges =="ADMIN",
+  gt_highlight_rows(columns = Type, rows = Type =="ADMIN",
                     font_weight = "normal",fill = "lightgrey")%>%
   gt_highlight_rows(columns = Year, rows = Year =="2021",
                     font_weight = "normal",fill = "#EF6D6D")%>%
@@ -2716,13 +2786,21 @@ cheq_fev%>%
   tab_style(
     style = cell_text(color = "#035397"),
     locations = cells_body(
-      columns = vars(ProductRanges),
+      columns = vars(Type),
      # rows = ProductRanges =="ADMIN"
-     rows = grepl("ADMIN",ProductRanges)
+     rows = grepl("ADMIN",Type)
     ))%>%
   tab_header(
-    title = "Cheques Expected From April 19th till Apr 30th 2022" ,
-    subtitle = "PS : HomeTech Labour Services cheque of 1,67,472 /- hits on 25th April") 
+    title = "Cheques Expected For June 2022" ,
+    subtitle = "PS : HomeTech Labour Services cheque hits on 27th June") %>%
+  tab_style(
+    style = list(
+      cell_fill(color = "#FFD36E")
+    ),
+    locations = cells_body(
+    #  columns = vendors, # not needed if coloring all columns
+      rows = vendors=="HOMETECH SERVICES PRIVATE LIMITED")
+  )
 
 
 colors_safe <- c("#6EBF8B", "#FC4F4F")
@@ -3087,7 +3165,7 @@ ggplot(aes(fill = fct_reorder(Department,Percentage), values = Percentage)) +
   facet_wrap(vars(Department)) +
   theme(axis.title = element_blank())
 library(glue)
-  
+library(waffle)
 chs_waffle%>%
   #filter(BillMonth==3)%>%
   mutate(share_renewable_precise = Percentage,
@@ -3451,7 +3529,7 @@ filter(StoreName=="cheers alwar")%>%
 
 
 
-#CRM Dashbiard
+#CRM Dashboard
 
 crm_dash <- read_csv("crm_dash.csv")
 
@@ -3463,5 +3541,105 @@ pivot_longer(cols = Dialled_calls:Active_Calls,names_to = "Type")%>%
   mutate(Type=as.factor(Type))%>%
   ggplot(aes(Date,value,color=Type))+
   geom_line()
-  
 
+
+pur_nov%>%
+  filter(grepl("NATHAN",ProductName))%>%
+  filter(!grepl("SNACKS",ProductName))%>%
+  filter(!grepl("CANDY",ProductName))%>%
+  filter(InvoiceDate=="2022-03-01")%>%
+  dplyr::select(ProductName,MRP,PurchasePrice)%>%
+  mutate(margin=100-round((PurchasePrice/MRP)*100))%>%
+  gt:: gt()%>%
+  gt_theme_538()%>%
+  tab_header(title = md("**Nathan Snacks Purchase Margin**"))%>%
+  data_color(
+    columns = c(PurchasePrice),
+    colors = scales::col_factor(
+      palette = paletteer::paletteer_d(
+        n = 3, palette = "colorblindr::OkabeIto"
+      ) %>% as.character(),
+      domain = NULL
+    )
+  )
+
+
+
+#sales per product
+
+
+sales_nov%>%
+  filter(grepl("SKM ",ProductName))%>%
+  select(BillDate,ProductName,Amount,MRP,Quantity)%>%
+  #group_by(ProductName)%>%
+  arrange(-Amount)%>%
+  gt :: gt()%>%
+  gt_theme_espn() %>% 
+  tab_header(title = "Home Grown Sales Overall")%>%
+  # trim gives smaller range of colors
+  # so the green and purples are not as dark
+  gt_color_rows(Amount, palette = "ggsci::blue_material")%>%
+  grand_summary_rows(
+    columns = c('Amount','MRP'),
+    fns = list(
+      TOTAL = ~sum(.)
+    ),
+    formatter = fmt_number,
+    decimals = 0
+  )
+
+  
+  
+  sales_cust <- read_csv("Sal_jan19.csv",skip=5)
+  
+  sales_cust%>%
+    count(CustomerMobile)%>%
+    write_csv("cheers_cust.xls")
+  
+  
+  chs_sales<-read_csv("shinydecsales.csv",show_col_types = FALSE)
+  
+  
+  chs_sales%>%
+    count(StoreName)
+  
+  
+  chs_sales%>%
+  #  filter(Department==input$select_dept)%>%
+    #  filter(!Department=="FRUITS AND VEG")%>%
+    filter(!grepl('Aavin', ProductName))%>%
+    filter(grepl('GOLD ', ProductName))%>%
+    #filter(StoreName=="Adyar")%>%
+    #filter(ProductCode=="42597")%>%
+    filter(StoreName=="cheers alwar")%>%
+   # filter(Productname=="HG RAW BANANA CHIPS THIN AND CRISPY 200G")%>%
+    #filter(BillYear>2021)%>%
+    #filter(BillMonth>1)%>%
+    #filter(StoreName=="Adyar") %>%
+    arrange(desc(BillDate))%>%
+    group_by(ProductName)%>%
+    summarise(TotalSales=sum(Amount),Units_Sold=sum(Quantity))%>%
+    arrange(desc(TotalSales))
+  
+  pur_nov%>%
+    filter(grepl('GOLD WINNER', ProductName))%>%
+    count(SupplierName)
+  
+  
+  reactable(iris[1:5, ],
+            details = function(index) {
+              if (index %in% c(3, 5)) {
+                reactable(data.frame(x = c(1, 2, 3), y = c("a", "b", "c")), fullWidth = FALSE)
+              }
+            },
+            columns = list(
+              Petal.Length = colDef(details = function(index) {
+                paste("Petal.Length: ", iris[index, "Petal.Length"])
+              }),
+              Sepal.Length = colDef(format = colFormat(digits = 1), details = JS("
+      function(rowInfo) {
+        return 'Sepal.Length: ' + rowInfo.values['Sepal.Length']
+      }
+    "))
+            )
+  )
